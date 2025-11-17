@@ -1,0 +1,118 @@
+name: Monthly ISO 4217 update
+
+on:
+  schedule:
+    # Run on the 1st of every month at 03:00 UTC
+    - cron: '0 3 1 * *'
+  workflow_dispatch:
+
+jobs:
+  update-iso:
+    name: Update ISO data and release if changed
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Configure git user
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          gh auth setup-git
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run update task
+        run: |
+          bundle exec rake update_currency_data
+
+      - name: Run tests
+        run: |
+          bundle exec rake test
+
+      - name: Check for changes
+        id: changes
+        run: |
+          if git diff --quiet --exit-code; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: No changes, stop
+        if: steps.changes.outputs.changed == 'false'
+        run: echo "No changes detected. Skipping PR and release."
+
+      - name: Create pull request
+        if: steps.changes.outputs.changed == 'true'
+        id: cpr
+        uses: peter-evans/create-pull-request@v7
+        with:
+          commit-message: "chore: update ISO 4217 currency data"
+          title: "chore: update ISO 4217 currency data"
+          body: |
+            Automated monthly update via GitHub Actions.
+            - Runs `rake update_currency_data`
+            - Updates `config/currency_iso.json` and `lib/iso4217.rb` version
+          branch: chore/update-iso-${{ github.run_id }}
+          delete-branch: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable PR auto-merge
+        if: steps.changes.outputs.changed == 'true' && steps.cpr.outputs.pull-request-number
+        run: gh pr merge ${PR_NUMBER} --rebase
+        env:
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update local default branch after merge
+        if: steps.changes.outputs.changed == 'true' && steps.cpr.outputs.pull-request-number
+        run: |
+          git checkout main
+          git pull --ff-only origin main
+
+      - name: Compute version and create tag
+        if: steps.changes.outputs.changed == 'true' && steps.cpr.outputs.pull-request-number
+        id: tag
+        run: |
+          VERSION=$(ruby -e 'puts Gem::Specification.load("iso4217.gemspec").version')
+          TAG="v${VERSION}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists, skipping tag creation"
+            exit 0
+          fi
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Create or update GitHub Release
+        if: steps.changes.outputs.changed == 'true' && steps.cpr.outputs.pull-request-number
+        id: rel
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.tag.outputs.tag }}
+          name: ISO 4217 v${{ steps.tag.outputs.version }}
+          generateReleaseNotes: true
+          allowUpdates: true
+          makeLatest: true
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: |
+          if [ "${{ steps.changes.outputs.changed }}" = "true" ]; then
+            echo "Created/updated PR #${{ steps.cpr.outputs.pull-request-number }} at ${{ steps.cpr.outputs.pull-request-url }}"
+            echo "Tagged release ${{ steps.tag.outputs.tag }} (version ${{ steps.tag.outputs.version }}) to trigger publish."
+            echo "GitHub Release: ${{ steps.rel.outputs.html_url }}"
+          else
+            echo "No changes to currency data or version."
+          fi

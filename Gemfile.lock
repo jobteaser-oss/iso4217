@@ -1,0 +1,25 @@
+PATH
+  remote: .
+  specs:
+    iso4217-rb (1.2.20250512)
+
+GEM
+  remote: https://rubygems.org/
+  specs:
+    minitest (5.25.5)
+    rake (13.3.0)
+    rexml (3.4.4)
+
+PLATFORMS
+  arm64-darwin-25
+  ruby
+
+DEPENDENCIES
+  bundler
+  iso4217-rb!
+  minitest
+  rake
+  rexml
+
+BUNDLED WITH
+   2.7.2
