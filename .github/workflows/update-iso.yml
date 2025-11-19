@@ -73,6 +73,31 @@ jobs:
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
 
+      - name: Wait for PR to merge
+        shell: bash
+        run: |
+          echo "Waiting for PR #${PR_NUMBER} to merge..."
+
+          while true; do
+            state=$(gh pr view "${PR_NUMBER}" --json state -q '.state')
+
+            if [[ "$state" == "MERGED" ]]; then
+              echo "PR has been merged!"
+              break
+            fi
+
+            if [[ "$state" == "CLOSED" ]]; then
+              echo "PR was closed without merging. Exiting with error."
+              exit 1
+            fi
+
+            echo "Current PR state: $state. Checking again in 5 seconds..."
+            sleep 5
+          done
+        env:
+          PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Update local default branch after merge
         if: steps.changes.outputs.changed == 'true' && steps.cpr.outputs.pull-request-number
         run: |
