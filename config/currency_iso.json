@@ -11,8 +11,8 @@
     "country_name": "ÅLAND ISLANDS",
     "currency_name": "Euro",
     "currency_code": "EUR",
-    "currency_number": 978,
-    "minor_unit": 2,
+    "currency_number": "978",
+    "minor_unit": "2",
     "is_fund": false
   },
   {
