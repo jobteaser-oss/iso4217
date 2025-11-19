@@ -68,7 +68,7 @@ jobs:
 
       - name: Enable PR auto-merge
         if: steps.changes.outputs.changed == 'true' && steps.cpr.outputs.pull-request-number
-        run: gh pr merge ${PR_NUMBER} --rebase
+        run: gh pr merge ${PR_NUMBER} --rebase || gh pr merge ${PR_NUMBER} --rebase --auto
         env:
           PR_NUMBER: ${{ steps.cpr.outputs.pull-request-number }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
