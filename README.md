@@ -1,5 +1,30 @@
 # iso4217
 
+## Development environment (Nix)
+
+The recommended way to get a fully reproducible dev environment is via
+[Nix](https://nixos.org/) + [direnv](https://direnv.net/). It provides the exact language
+toolchain (from this repo's version files) and all native dependencies — no manual installs.
+
+**1. Install Nix** — see the [official Nix installation guide](https://nixos.org/download/)
+
+**2. Install direnv and hook it into your shell** — see the
+[official direnv guide](https://direnv.net/docs/installation.html)
+
+**3. Allow direnv in the project**
+
+```bash
+direnv allow
+```
+
+Nix fetches everything on the first run (a few minutes); afterwards the environment loads
+automatically whenever you `cd` into the project — no separate setup steps to follow.
+
+> Update the lockfile after editing `flake.nix` with `nix flake update`.
+
+---
+
+
 A tiny Ruby library that provides ISO 4217 currency codes and related information. It ships a JSON dataset and a simple API for listing currency codes or iterating over full currency records.
 
 ## Installation
